@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/FG-GIS/bootpokedex/internal/pokecache"
 )
 
 //STRUCTS
@@ -39,6 +42,7 @@ const (
 
 var validCommands map[string]cliCommand
 var mapConfig = config{}
+var mapCache = pokecache.NewCache(time.Second * 5)
 
 //FUNCS
 
@@ -49,6 +53,8 @@ func cleanInput(text string) []string {
 
 func commandMap(c *config) error {
 	url := POKEAPI + AREAS
+	var payload []byte
+
 	if c.Next == "" && c.Previous != "" {
 		fmt.Println("You've reached the end of the list")
 		return nil
@@ -56,17 +62,24 @@ func commandMap(c *config) error {
 	if c.Next != "" {
 		url = c.Next
 	}
-	res, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("error in the Areas request: %w", err)
-	}
-	defer res.Body.Close()
 
-	payload, err := io.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("error retrieving the payload: %w", err)
+	if cData, ok := mapCache.Get(url); ok {
+		payload = cData
+	} else {
+		res, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("error in the Areas request: %w", err)
+		}
+		defer res.Body.Close()
+
+		payload, err = io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("error retrieving the payload: %w", err)
+		}
+		mapCache.Add(url, payload)
 	}
-	err = json.Unmarshal(payload, &mapConfig)
+
+	err := json.Unmarshal(payload, &mapConfig)
 	if err != nil {
 		return fmt.Errorf("error decoding the payload: %w", err)
 	}
@@ -80,6 +93,8 @@ func commandMap(c *config) error {
 
 func commandMapB(c *config) error {
 	url := "https://pokeapi.co/api/v2/location-area?offset=1069&limit=20"
+	var payload []byte
+
 	if c.Next != "" && c.Previous == "" {
 		fmt.Println("you're on the first page")
 		return nil
@@ -87,17 +102,24 @@ func commandMapB(c *config) error {
 	if c.Previous != "" {
 		url = c.Previous
 	}
-	res, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("error in the Areas request: %w", err)
-	}
-	defer res.Body.Close()
 
-	payload, err := io.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("error retrieving the payload: %w", err)
+	if cData, ok := mapCache.Get(url); ok {
+		payload = cData
+	} else {
+		res, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("error in the Areas request: %w", err)
+		}
+		defer res.Body.Close()
+
+		payload, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("error retrieving the payload: %w", err)
+		}
+		mapCache.Add(url, payload)
 	}
-	err = json.Unmarshal(payload, &mapConfig)
+
+	err := json.Unmarshal(payload, &mapConfig)
 	if err != nil {
 		return fmt.Errorf("error decoding the payload: %w", err)
 	}
