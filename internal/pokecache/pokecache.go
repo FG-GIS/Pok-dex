@@ -1,6 +1,7 @@
 package pokecache
 
 import (
+	// "fmt"
 	"sync"
 	"time"
 )
@@ -54,8 +55,11 @@ func (c *Cache) reapLoop(interval time.Duration) {
 		}
 		c.mu.Lock()
 
+		// fmt.Println("ticker: ", t.String())
 		checkTime := t.Add(-interval)
+		// fmt.Println("ticker - interval: ", checkTime.String())
 		for k, v := range c.entry {
+			// fmt.Println("created at: ", v.createdAt.String())
 			if v.createdAt.Before(checkTime) {
 				delete(c.entry, k)
 			}
