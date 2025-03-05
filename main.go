@@ -21,6 +21,7 @@ type cliCommand struct {
 	callback    func(c *config) error
 }
 type config struct {
+	Actual   string
 	Next     string    `json:"next"`
 	Previous string    `json:"previous"`
 	Results  []pokeMap `json:"results"`
@@ -41,7 +42,9 @@ const (
 //VARS
 
 var validCommands map[string]cliCommand
-var mapConfig = config{}
+var mapConfig = config{
+	Actual: POKEAPI + AREAS,
+}
 var mapCache = pokecache.NewCache(time.Second * 5)
 
 //FUNCS
@@ -52,21 +55,26 @@ func cleanInput(text string) []string {
 }
 
 func commandMap(c *config) error {
-	url := POKEAPI + AREAS
 	var payload []byte
 
-	if c.Next == "" && c.Previous != "" {
+	// debug
+	fmt.Println("Next     ==> ", c.Next)
+	fmt.Println("Previous ==> ", c.Previous)
+
+	if (c.Next == "" || c.Next == c.Actual) && c.Previous != "" {
 		fmt.Println("You've reached the end of the list")
 		return nil
 	}
 	if c.Next != "" {
-		url = c.Next
+		c.Actual = c.Next
 	}
+	fmt.Println("c.Actual      ==> ", c.Actual)
 
-	if cData, ok := mapCache.Get(url); ok {
+	if cData, ok := mapCache.Get(c.Actual); ok {
+		// fmt.Println("test 1")
 		payload = cData
 	} else {
-		res, err := http.Get(url)
+		res, err := http.Get(c.Actual)
 		if err != nil {
 			return fmt.Errorf("error in the Areas request: %w", err)
 		}
@@ -76,7 +84,8 @@ func commandMap(c *config) error {
 		if err != nil {
 			return fmt.Errorf("error retrieving the payload: %w", err)
 		}
-		mapCache.Add(url, payload)
+		// fmt.Println("test 1")
+		mapCache.Add(c.Actual, payload)
 	}
 
 	err := json.Unmarshal(payload, &mapConfig)
@@ -92,33 +101,48 @@ func commandMap(c *config) error {
 }
 
 func commandMapB(c *config) error {
-	url := "https://pokeapi.co/api/v2/location-area?offset=1069&limit=20"
 	var payload []byte
 
-	if c.Next != "" && c.Previous == "" {
+	// debug
+	fmt.Println("Next     ==> ", c.Next)
+	fmt.Println("Previous ==> ", c.Previous)
+
+	if c.Next != "" && (c.Previous == "" || c.Previous == c.Actual) {
 		fmt.Println("you're on the first page")
 		return nil
 	}
 	if c.Previous != "" {
-		url = c.Previous
+		c.Actual = c.Previous
 	}
+	fmt.Println("c.Actual      ==> ", c.Actual)
 
-	if cData, ok := mapCache.Get(url); ok {
+	if cData, ok := mapCache.Get(c.Actual); ok {
+		// debug
+		// fmt.Println("payload <== cache")
+
 		payload = cData
 	} else {
-		res, err := http.Get(url)
+		res, err := http.Get(c.Actual)
 		if err != nil {
 			return fmt.Errorf("error in the Areas request: %w", err)
 		}
 		defer res.Body.Close()
 
-		payload, err := io.ReadAll(res.Body)
+		// debug
+		// fmt.Println("payload <== new Data")
+
+		payload, err = io.ReadAll(res.Body)
 		if err != nil {
 			return fmt.Errorf("error retrieving the payload: %w", err)
 		}
-		mapCache.Add(url, payload)
+		// debug
+		// fmt.Println("cache <== new Data")
+		// fmt.Println("Data ==>:\n", string(payload))
+		mapCache.Add(c.Actual, payload)
 	}
-
+	// debug
+	// fmt.Println("Data unmarshaling")
+	// fmt.Println("Data ==>:\n", string(payload))
 	err := json.Unmarshal(payload, &mapConfig)
 	if err != nil {
 		return fmt.Errorf("error decoding the payload: %w", err)
@@ -185,6 +209,8 @@ func main() {
 		cmd, ok := validCommands[text[0]]
 		if !ok {
 			fmt.Println("Unknown command")
+			fmt.Print("Pokedex > ")
+			continue
 		}
 		err := cmd.callback(&mapConfig)
 		if err != nil {

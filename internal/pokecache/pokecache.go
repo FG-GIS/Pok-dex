@@ -16,54 +16,51 @@ type Cache struct {
 	mu    *sync.Mutex
 }
 
-func NewCache(interval time.Duration) *Cache {
+func NewCache(interval time.Duration) Cache {
 	var c = Cache{
 		entry: make(map[string]cacheEntry),
 		mu:    &sync.Mutex{},
 	}
 	go c.reapLoop(interval)
-	return &c
+	return c
 }
 
 func (c *Cache) Add(key string, val []byte) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.entry[key] = cacheEntry{
 		createdAt: time.Now(),
 		value:     val,
 	}
-	c.mu.Unlock()
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	val, ok := c.entry[key]
 	if !ok {
 		return []byte{}, false
 	}
-	c.mu.Unlock()
 	return val.value, true
 }
 
 func (c *Cache) reapLoop(interval time.Duration) {
 	tic := time.NewTicker(interval)
-	defer tic.Stop()
+	// defer tic.Stop()
 
-	for {
-		t, ok := <-tic.C
-		if !ok {
-			return
-		}
-		c.mu.Lock()
+	for range tic.C {
+		t := time.Now()
 
-		// fmt.Println("ticker: ", t.String())
-		checkTime := t.Add(-interval)
-		// fmt.Println("ticker - interval: ", checkTime.String())
-		for k, v := range c.entry {
-			// fmt.Println("created at: ", v.createdAt.String())
-			if v.createdAt.Before(checkTime) {
-				delete(c.entry, k)
+		func() {
+			c.mu.Lock()
+			defer c.mu.Unlock()
+
+			checkTime := t.Add(-interval)
+			for k, v := range c.entry {
+				if v.createdAt.Before(checkTime) {
+					delete(c.entry, k)
+				}
 			}
-		}
-		c.mu.Unlock()
+		}()
 	}
 }
