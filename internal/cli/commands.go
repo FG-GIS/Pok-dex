@@ -67,6 +67,15 @@ func commandExplore(c *Config, arg string) error {
 	return nil
 }
 
+func commandCatch(c *Config, arg string) error {
+	pokeDetail, err := c.PokeApiClient.GetPokeDetail(arg)
+	if err != nil {
+		return err
+	}
+	pokeapi.Catch(pokeDetail)
+	return nil
+}
+
 func GetCommands() map[string]cliCommand {
 	return map[string]cliCommand{
 		"exit": {
@@ -93,6 +102,11 @@ func GetCommands() map[string]cliCommand {
 			name:        "explore",
 			description: "explore <location>\n will list the pokemons on the area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "catch <pokemon>\n will attempt to catch the speciman",
+			callback:    commandCatch,
 		},
 	}
 }

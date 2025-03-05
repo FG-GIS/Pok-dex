@@ -2,7 +2,9 @@ package pokeapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -12,7 +14,10 @@ import (
 const (
 	baseURL        = "https://pokeapi.co/api/v2"
 	areas   string = "location-area"
+	pokeEnd        = "pokemon"
 )
+
+var pokedex = map[string]string{}
 
 func NewClient(timeout, cacheLimit time.Duration) Client {
 	return Client{
@@ -44,6 +49,8 @@ func (c *Client) GetLocations(page *string) (RespLocationAreas, error) {
 
 	return data, nil
 }
+
+// possible generic "GetEndDetail"
 func (c *Client) ExploreLocation(location string) (RespLocationDetail, error) {
 	url := baseURL + "/" + areas + "/" + location
 
@@ -61,6 +68,25 @@ func (c *Client) ExploreLocation(location string) (RespLocationDetail, error) {
 	}
 	return data, nil
 
+}
+
+// possible generic "GetEndDetail"
+func (c *Client) GetPokeDetail(pokemon string) (RespPokemonDetail, error) {
+	url := baseURL + "/" + pokeEnd + "/" + pokemon
+
+	// cached data test
+	if data, ok, err := GetCachedData[RespPokemonDetail](c, url); err != nil {
+		return data, err
+	} else if ok {
+		return data, nil
+	}
+
+	// non cached data procedure
+	data, err := GetRequest[RespPokemonDetail](c, url)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
 }
 
 func GetCachedData[T any](c *Client, key string) (T, bool, error) {
@@ -108,4 +134,27 @@ func GetPokemons(det RespLocationDetail) []string {
 		pkms = append(pkms, p.Pokemon.Name)
 	}
 	return pkms
+}
+
+func Catch(pokemon RespPokemonDetail) {
+	pokeName := pokemon.Name
+	fmt.Printf("Throwing a Pokeball at %v...\n", pokeName)
+	rate := 0.9
+	if pokemon.BaseExperience > 100 {
+		rate = 1.0 / (float64(pokemon.BaseExperience) / 100)
+	}
+	shake := "Shakes."
+	for i := 0; i < 3; i++ {
+		fmt.Println(shake + "\n")
+		shake += "."
+		r := rand.Float64()
+		time.Sleep(time.Millisecond * 500)
+		if r < rate {
+			fmt.Printf("%v was caught!\n", pokeName)
+			pokedex[pokemon.Name] = pokeName
+			return
+		}
+	}
+
+	fmt.Printf("%v escaped!\n", pokeName)
 }
