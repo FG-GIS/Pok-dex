@@ -14,21 +14,6 @@ const (
 	areas   string = "location-area"
 )
 
-type Client struct {
-	cache pokecache.Cache
-	hC    http.Client
-}
-
-type RespLocationAreas struct {
-	Count    int     `json:"count"`
-	Next     *string `json:"next"`
-	Previous *string `json:"previous"`
-	Results  []struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	} `json:"results"`
-}
-
 func NewClient(timeout, cacheLimit time.Duration) Client {
 	return Client{
 		cache: pokecache.NewCache(cacheLimit),
@@ -45,37 +30,82 @@ func (c *Client) GetLocations(page *string) (RespLocationAreas, error) {
 	}
 
 	// cached data test
-	if data, ok := c.cache.Get(url); ok {
-		locData := RespLocationAreas{}
-		err := json.Unmarshal(data, &locData)
-		if err != nil {
-			return RespLocationAreas{}, err
-		}
-		return locData, nil
+	if data, ok, err := GetCachedData[RespLocationAreas](c, url); err != nil {
+		return RespLocationAreas{}, err
+	} else if ok {
+		return data, nil
 	}
 
 	// non cached data procedure
+	data, err := GetRequest[RespLocationAreas](c, url)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+func (c *Client) ExploreLocation(location string) (RespLocationDetail, error) {
+	url := baseURL + "/" + areas + "/" + location
+
+	// cached data test
+	if data, ok, err := GetCachedData[RespLocationDetail](c, url); err != nil {
+		return data, err
+	} else if ok {
+		return data, nil
+	}
+
+	// non cached data procedure
+	data, err := GetRequest[RespLocationDetail](c, url)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+
+}
+
+func GetCachedData[T any](c *Client, key string) (T, bool, error) {
+	var result T
+
+	data, ok := c.cache.Get(key)
+	if !ok {
+		return result, false, nil
+	}
+	err := json.Unmarshal(data, &result)
+	if err != nil {
+		return result, false, err
+	}
+	return result, true, nil
+}
+
+func GetRequest[T any](c *Client, url string) (T, error) {
+	var result T
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return RespLocationAreas{}, nil
+		return result, err
 	}
 
 	res, err := c.hC.Do(req)
 	if err != nil {
-		return RespLocationAreas{}, nil
+		return result, err
 	}
 	defer res.Body.Close()
-
 	d, err := io.ReadAll(res.Body)
 	if err != nil {
-		return RespLocationAreas{}, nil
+		return result, err
 	}
-	locs := RespLocationAreas{}
-	err = json.Unmarshal(d, &locs)
+	err = json.Unmarshal(d, &result)
 	if err != nil {
-		return RespLocationAreas{}, nil
+		return result, err
 	}
 	c.cache.Add(url, d)
+	return result, nil
+}
 
-	return locs, nil
+func GetPokemons(det RespLocationDetail) []string {
+	pkms := []string{}
+	for _, p := range det.PokemonEncounters {
+		pkms = append(pkms, p.Pokemon.Name)
+	}
+	return pkms
 }

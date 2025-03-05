@@ -12,7 +12,7 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(c *Config) error
+	callback    func(c *Config, arg string) error
 }
 
 type Config struct {
@@ -42,7 +42,15 @@ func StartPokeCli(cfg *Config) {
 			fmt.Println("Unknown command")
 			continue
 		}
-		err := cmd.callback(cfg)
+		if len(text) > 1 {
+			err := cmd.callback(cfg, text[1])
+			if err != nil {
+				fmt.Println(err)
+			}
+			continue
+		}
+		err := cmd.callback(cfg, text[0])
+
 		if err != nil {
 			fmt.Println(err)
 		}
