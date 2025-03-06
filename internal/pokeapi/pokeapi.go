@@ -17,7 +17,7 @@ const (
 	pokeEnd        = "pokemon"
 )
 
-var pokedex = map[string]string{}
+var pokedex = map[string]RespPokemonDetail{}
 
 func NewClient(timeout, cacheLimit time.Duration) Client {
 	return Client{
@@ -136,6 +136,44 @@ func GetPokemons(det RespLocationDetail) []string {
 	return pkms
 }
 
+func ListPokedex() []string {
+	pkmList := []string{}
+	for k := range pokedex {
+		pkmList = append(pkmList, k)
+	}
+	return pkmList
+}
+
+func Inspect(poke string) pokedexEntry {
+	mon, ok := pokedex[poke]
+	if !ok {
+		return pokedexEntry{
+			Status: "you have not caught " + poke,
+		}
+	}
+	result := pokedexEntry{
+		Name:   mon.Name,
+		Height: mon.Height,
+		Weight: mon.Weight,
+		Stats: map[string]int{
+			"hp":              mon.Stats[0].BaseStat,
+			"attack":          mon.Stats[1].BaseStat,
+			"defense":         mon.Stats[2].BaseStat,
+			"special-attack":  mon.Stats[3].BaseStat,
+			"special-defense": mon.Stats[4].BaseStat,
+			"speed":           mon.Stats[5].BaseStat,
+		},
+		Types:  []string{},
+		Status: "",
+	}
+
+	for _, ty := range mon.Types {
+		result.Types = append(result.Types, ty.Type.Name)
+	}
+
+	return result
+}
+
 func Catch(pokemon RespPokemonDetail) {
 	pokeName := pokemon.Name
 	fmt.Printf("Throwing a Pokeball at %v...\n", pokeName)
@@ -151,7 +189,7 @@ func Catch(pokemon RespPokemonDetail) {
 		time.Sleep(time.Millisecond * 500)
 		if r < rate {
 			fmt.Printf("%v was caught!\n", pokeName)
-			pokedex[pokemon.Name] = pokeName
+			pokedex[pokeName] = pokemon
 			return
 		}
 	}

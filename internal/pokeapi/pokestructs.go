@@ -101,6 +101,15 @@ type RespPokemonDetail struct {
 	Weight int `json:"weight"`
 }
 
+type pokedexEntry struct {
+	Name   string
+	Height int
+	Weight int
+	Stats  map[string]int
+	Types  []string
+	Status string
+}
+
 type pokeElement struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`

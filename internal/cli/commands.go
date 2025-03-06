@@ -76,6 +76,38 @@ func commandCatch(c *Config, arg string) error {
 	return nil
 }
 
+func commandInspect(c *Config, arg string) error {
+	entry := pokeapi.Inspect(arg)
+	if entry.Status != "" {
+		fmt.Println(entry.Status)
+		return nil
+	}
+	fmt.Printf("Name: %v\n", entry.Name)
+	fmt.Printf("Height: %v\n", entry.Height)
+	fmt.Printf("Weight: %v\n", entry.Weight)
+	fmt.Printf("Stats:\n")
+	fmt.Printf("  -hp: %v\n", entry.Stats["hp"])
+	fmt.Printf("  -attack: %v\n", entry.Stats["attack"])
+	fmt.Printf("  -defense: %v\n", entry.Stats["defense"])
+	fmt.Printf("  -special-attack: %v\n", entry.Stats["special-attack"])
+	fmt.Printf("  -special-defense: %v\n", entry.Stats["special-defense"])
+	fmt.Printf("  -speed: %v\n", entry.Stats["speed"])
+	fmt.Printf("Types:\n")
+	for _, v := range entry.Types {
+		fmt.Printf("  -%v\n", v)
+	}
+	return nil
+}
+
+func commandPokedex(c *Config, arg string) error {
+	pkmList := pokeapi.ListPokedex()
+	fmt.Printf("Your Pokedex:\n")
+	for _, v := range pkmList {
+		fmt.Printf(" - %v\n", v)
+	}
+	return nil
+}
+
 func GetCommands() map[string]cliCommand {
 	return map[string]cliCommand{
 		"exit": {
@@ -107,6 +139,16 @@ func GetCommands() map[string]cliCommand {
 			name:        "catch",
 			description: "catch <pokemon>\n will attempt to catch the speciman",
 			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "inspect <pokemon>\n retrieve info from pokedex",
+			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "print out your pokedex (list of caught pokemons)",
+			callback:    commandPokedex,
 		},
 	}
 }
